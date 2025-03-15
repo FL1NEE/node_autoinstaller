@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import subprocess
 import requests
@@ -6,16 +7,9 @@ import json
 # Путь к файлу для хранения данных прокси
 PROXY_DATA_FILE: str = "proxy_data.json"
 
-# Список доступных проектов
-PROJECTS: dict = {
-    1: {"name": "Hemi", "url": "https://hemi.xyz/", "installer": "installers/hemi.sh", "installed": False},
-    2: {"name": "Powerloom", "url": "https://docs.powerloom.io/", "installer": "installers/powerloom.sh", "installed": False},
-    3: {"name": "Farcaster", "url": "https://docs.farcaster.xyz/", "installer": "installers/farcaster.sh", "installed": False},
-    4: {"name": "Nillion", "url": "https://docs.nillion.com/network", "installer": "installers/nillion.sh", "installed": False},
-    5: {"name": "Initia", "url": "https://docs.initia.xyz/run-initia-node/running-initia-node", "installer": "installers/initia.sh", "installed": False},
-    6: {"name": "eOracle", "url": "https://docs.eo.app/docs/operators/installation", "installer": "installers/eoracle.sh", "installed": False},
-    7: {"name": "Spheron Network", "url": "https://docs.spheron.network/providers/setup-provider", "installer": "installers/spheron.sh", "installed": False},
-}
+# Базовые URL для GitHub API и raw-файлов
+GITHUB_API_URL: str = "https://api.github.com/repos/FL1NEE/node_autoinstaller/contents/installers"
+RAW_BASE_URL: str = "https://raw.githubusercontent.com/FL1NEE/node_autoinstaller/main/"
 
 # Класс для хранения данных прокси
 class ProxyData:
@@ -29,7 +23,7 @@ proxy_data = ProxyData()
 def get_current_ip() -> str:
     """Получение текущего IP-адреса"""
     try:
-        response: requests.Response = requests.get("https://api.ipify.org?format=json", timeout=10)
+        response = requests.get("https://api.ipify.org?format=json", timeout=10)
         return response.json().get("ip")
     except Exception as e:
         print(f"Ошибка при получении IP-адреса: {e}")
@@ -37,7 +31,7 @@ def get_current_ip() -> str:
 
 def save_proxy_data() -> None:
     """Сохранение данных прокси в файл"""
-    proxy_data_dict: dict = {
+    proxy_data_dict = {
         "proxy_server": proxy_data.proxy_server,
         "username": proxy_data.username,
         "password": proxy_data.password,
@@ -49,7 +43,7 @@ def load_proxy_data() -> bool:
     """Загрузка данных прокси из файла"""
     if os.path.exists(PROXY_DATA_FILE):
         with open(PROXY_DATA_FILE, "r") as f:
-            proxy_data_dict: dict = json.load(f)
+            proxy_data_dict = json.load(f)
             proxy_data.proxy_server = proxy_data_dict.get("proxy_server", "")
             proxy_data.username = proxy_data_dict.get("username", "")
             proxy_data.password = proxy_data_dict.get("password", "")
@@ -60,7 +54,7 @@ def is_proxy_configured() -> bool:
     """Проверка, были ли данные прокси уже добавлены в /etc/environment"""
     if os.path.exists("/etc/environment"):
         with open("/etc/environment", "r") as f:
-            content: str = f.read()
+            content = f.read()
             return "http_proxy" in content and "https_proxy" in content
     return False
 
@@ -84,10 +78,9 @@ def setup_proxy() -> None:
 def check_proxy_availability(proxy_url: str) -> bool:
     """Проверка доступности прокси"""
     try:
-        # Отправляем тестовый запрос через прокси
         response = requests.get("https://ipv4.jsonip.com/", proxies={"http": proxy_url, "https": proxy_url}, timeout=20)
         if response.status_code == 200:
-            print(f"Прокси работает. Полученный IP: {response.json()["ip"]}")
+            print(f"Прокси работает. Полученный IP: {response.json()['ip']}")
             return True
         else:
             print("Прокси не работает. Статус код:", response.status_code)
@@ -98,12 +91,12 @@ def check_proxy_availability(proxy_url: str) -> bool:
 
 def validate_proxy(original_ip: str) -> None:
     """Проверка работы прокси"""
-    max_attempts: int = 3  # Максимальное количество попыток
-    attempt: int = 0
+    max_attempts = 3
+    attempt = 0
 
     while attempt < max_attempts:
-        current_ip: str = get_current_ip()
-        proxy_url: str = f"http://{proxy_data.username}:{proxy_data.password}@{proxy_data.proxy_server}"
+        current_ip = get_current_ip()
+        proxy_url = f"http://{proxy_data.username}:{proxy_data.password}@{proxy_data.proxy_server}"
 
         if check_proxy_availability(proxy_url):
             print("Прокси успешно настроен и работает.")
@@ -121,42 +114,70 @@ def validate_proxy(original_ip: str) -> None:
 def reboot_system() -> None:
     """Перезагрузка системы"""
     print("Для применения настроек прокси требуется перезагрузка системы.")
-    confirm: str = input("Хотите перезагрузить систему сейчас? (y/n): ").strip().lower()
+    confirm = input("Хотите перезагрузить систему сейчас? (y/n): ").strip().lower()
     if confirm == "y":
         print("Перезагрузка системы...")
         os.system("sudo reboot")
     else:
         print("Перезагрузите систему вручную для применения изменений.")
 
-def display_menu() -> None:
+def fetch_projects() -> dict:
+    """Получение списка проектов из репозитория"""
+    try:
+        response = requests.get(GITHUB_API_URL)
+        response.raise_for_status()
+        files = response.json()
+        projects = {}
+        for idx, file in enumerate(files, start=1):
+            if file["type"] == "file" and file["name"].endswith(".sh"):
+                project_name = file["name"].replace(".sh", "").capitalize()
+                projects[idx] = {
+                    "name": project_name,
+                    "url": RAW_BASE_URL + file["path"],
+                    "installed": False,
+                }
+        return projects
+    except Exception as e:
+        print(f"Ошибка при получении списка проектов: {e}")
+        return {}
+
+def display_menu(projects: dict) -> None:
     print("\n=== Доступные тестнет-проекты ===")
-    for num, project in PROJECTS.items():
-        status: str = "[✓]" if project["installed"] else "[ ]"
-        print(f"{num}. {status} {project['name']} ({project['url']})")
+    for num, project in projects.items():
+        status = "[✓]" if project["installed"] else "[ ]"
+        print(f"{num}. {status} {project['name']}")
     print("0. Выход")
 
-def get_user_choice() -> int:
+def get_user_choice(projects: dict) -> int:
     while True:
         try:
-            choice: int = int(input("Введите номер проекта для установки: "))
+            choice = int(input("Введите номер проекта для установки: "))
             if choice == 0:
                 print("Выход из программы.")
                 exit()
-            elif choice in PROJECTS:
+            elif choice in projects:
                 return choice
             else:
                 print("Неверный номер. Попробуйте снова.")
         except ValueError:
             print("Введите число.")
 
-def run_installer(installer_path: str) -> bool:
-    if not os.path.isfile(installer_path):
-        print(f"Ошибка: Установщик не найден ({installer_path}).")
+def run_installer(installer_url: str) -> bool:
+    installer_name = installer_url.split("/")[-1]
+    try:
+        print(f"Скачивание установщика: {installer_url}")
+        response = requests.get(installer_url)
+        response.raise_for_status()
+        with open(installer_name, "wb") as f:
+            f.write(response.content)
+        print(f"Установщик '{installer_name}' успешно скачан.")
+    except Exception as e:
+        print(f"Ошибка при скачивании установщика: {e}")
         return False
 
-    print(f"Запуск установщика: {installer_path}")
+    print(f"Запуск установщика: {installer_name}")
     try:
-        subprocess.run(["bash", installer_path], check=True)
+        subprocess.run(["bash", installer_name], check=True)
         print("Установка завершена успешно!")
         return True
     except subprocess.CalledProcessError as e:
@@ -166,7 +187,7 @@ def run_installer(installer_path: str) -> bool:
 def main() -> None:
     # Шаг 1: Проверка текущего IP-адреса
     print("Проверка текущего IP-адреса...")
-    original_ip: str = get_current_ip()
+    original_ip = get_current_ip()
     if not original_ip:
         print("Не удалось получить текущий IP-адрес. Проверьте подключение к интернету.")
         exit()
@@ -175,10 +196,8 @@ def main() -> None:
     # Шаг 2: Проверка наличия настроек прокси
     if is_proxy_configured():
         print("Прокси уже настроен.")
-        proxy_url: str = f"http://{proxy_data.username}:{proxy_data.password}@{proxy_data.proxy_server}"
-        if check_proxy_availability(proxy_url):
-            print("Прокси работает корректно.")
-        else:
+        proxy_url = f"http://{proxy_data.username}:{proxy_data.password}@{proxy_data.proxy_server}"
+        if not check_proxy_availability(proxy_url):
             print("Прокси не работает. Проверяем работу прокси...")
             validate_proxy(original_ip)
     else:
@@ -186,16 +205,22 @@ def main() -> None:
         setup_proxy()
         reboot_system()
 
-    # Шаг 3: Предложение установки нод
+    # Шаг 3: Получение списка проектов
+    projects = fetch_projects()
+    if not projects:
+        print("Не удалось получить список проектов. Завершение программы.")
+        exit()
+
+    # Шаг 4: Предложение установки нод
     while True:
-        display_menu()
-        choice: int = get_user_choice()
-        selected_project: dict = PROJECTS[choice]
+        display_menu(projects)
+        choice = get_user_choice(projects)
+        selected_project = projects[choice]
 
         if not selected_project["installed"]:
-            success: bool = run_installer(selected_project["installer"])
+            success = run_installer(selected_project["url"])
             if success:
-                PROJECTS[choice]["installed"] = True
+                projects[choice]["installed"] = True
         else:
             print(f"{selected_project['name']} уже установлен.")
 
