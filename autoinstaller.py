@@ -86,10 +86,9 @@ def check_proxy_availability(proxy_url: str) -> bool:
     """Проверка доступности прокси"""
     try:
         # Отправляем тестовый запрос через прокси
-        response = requests.get("https://ipv4.jsonip.com/", proxies={"http": proxy_url, "https": proxy_url}, timeout=10)
-        print(response.text)
+        response = requests.get("https://ipv4.jsonip.com/", proxies={"http": proxy_url, "https": proxy_url}, timeout=20)
         if response.status_code == 200:
-            print(f"Прокси работает. Полученный IP: {response.text.strip()}")
+            print(f"Прокси работает. Полученный IP: {response.json()["ip"]}")
             return True
         else:
             print("Прокси не работает. Статус код:", response.status_code)
