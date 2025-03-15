@@ -82,16 +82,42 @@ def setup_proxy() -> None:
         f.write("no_proxy=\"localhost,127.0.0.1,::1\"\n")
     print("Прокси успешно настроен.")
 
+def check_proxy_availability(proxy_url: str) -> bool:
+    """Проверка доступности прокси"""
+    try:
+        # Отправляем тестовый запрос через прокси
+        response = requests.get("http://2ip.ru", proxies={"http": proxy_url, "https": proxy_url}, timeout=10)
+        if response.status_code == 200:
+            print(f"Прокси работает. Полученный IP: {response.text.strip()}")
+            return True
+        else:
+            print("Прокси не работает. Статус код:", response.status_code)
+            return False
+    except Exception as e:
+        print(f"Ошибка при проверке прокси: {e}")
+        return False
+
 def validate_proxy(original_ip: str) -> None:
     """Проверка работы прокси"""
-    while True:
+    max_attempts: int = 3  # Максимальное количество попыток
+    attempt: int = 0
+
+    while attempt < max_attempts:
         current_ip: str = get_current_ip()
-        if current_ip and current_ip != original_ip:
-            print(f"IP-адрес успешно изменён на: {current_ip}")
-            break
+        proxy_url: str = f"http://{proxy_data.username}:{proxy_data.password}@{proxy_data.proxy_server}"
+
+        if check_proxy_availability(proxy_url):
+            print("Прокси успешно настроен и работает.")
+            return
         else:
-            print("IP-адрес не изменился. Прокси не работает. Повторная попытка...")
-            setup_proxy()
+            print("Прокси не работает.")
+            attempt += 1
+            if attempt < max_attempts:
+                print(f"Попытка {attempt}/{max_attempts}. Повторная настройка прокси...")
+                setup_proxy()
+            else:
+                print("Прокси не удалось настроить после нескольких попыток.")
+                exit(1)
 
 def reboot_system() -> None:
     """Перезагрузка системы"""
@@ -149,17 +175,19 @@ def main() -> None:
 
     # Шаг 2: Проверка наличия настроек прокси
     if is_proxy_configured():
-        print("Прокси уже настроен. Пропускаем этап настройки прокси.")
+        print("Прокси уже настроен.")
+        proxy_url: str = f"http://{proxy_data.username}:{proxy_data.password}@{proxy_data.proxy_server}"
+        if check_proxy_availability(proxy_url):
+            print("Прокси работает корректно.")
+        else:
+            print("Прокси не работает. Проверяем работу прокси...")
+            validate_proxy(original_ip)
     else:
         print("Настройка прокси...")
         setup_proxy()
         reboot_system()
 
-    # Шаг 3: Проверка работы прокси
-    print("Проверка работы прокси...")
-    validate_proxy(original_ip)
-
-    # Шаг 4: Предложение установки нод
+    # Шаг 3: Предложение установки нод
     while True:
         display_menu()
         choice: int = get_user_choice()
