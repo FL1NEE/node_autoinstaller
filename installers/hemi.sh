@@ -1,138 +1,265 @@
 #!/bin/bash
 
-# Скрипт автоматической установки Hemi PoP ноды для Linux (amd64)
-# Требует запуска от root (sudo)
+# Цвета текста
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # Нет цвета (сброс цвета)
 
-# Проверка прав
-if [ "$EUID" -ne 0 ]; then
-  echo "Запустите скрипт с правами root: sudo $0"
-  exit 1
+# Отображаем логотип
+curl -s https://raw.githubusercontent.com/noxuspace/cryptofortochka/main/logo_forto.sh | bash
+
+# Проверка наличия curl и установка, если не установлен
+if ! command -v curl &> /dev/null; then
+    sudo apt update
+    sudo apt install curl -y
 fi
+sleep 1
 
-# Конфигурация
-HEMI_VERSION="v1.0.0"                     
-HEMI_PACKAGE="heminetwork_${HEMI_VERSION}_linux_amd64.tar.gz"
-BFG_URL="wss://pop.hemi.network/v1/ws/public"
+# Меню
+echo -e "${YELLOW}Выберите действие:${NC}"
+echo -e "${CYAN}1) Установка ноды${NC}"
+echo -e "${CYAN}2) Обновление ноды${NC}"
+echo -e "${CYAN}3) Изменение комиссии${NC}"
+echo -e "${CYAN}4) Удаление ноды${NC}"
+echo -e "${CYAN}5) Проверка логов (выход из логов CTRL+C)${NC}"
 
-# Диалог выбора сети
-PS3='Выберите сеть для работы: '
-options=("Mainnet" "Testnet")
-select opt in "${options[@]}"
-do
-  case $opt in
-    "Mainnet")
-      NETWORK="mainnet"
-      FEE_RATE=3
-      break
-      ;;
-    "Testnet")
-      NETWORK="testnet"
-      FEE_RATE=1
-      break
-      ;;
-    *) echo "Неверный вариант $REPLY";;
-  esac
-done
+echo -e "${YELLOW}Введите номер:${NC} "
+read choice
 
-# Диалог выбора кошелька
-echo
-PS3='Использовать существующий кошелек или создать новый? '
-wallet_options=("Создать новый кошелек" "Использовать существующий приватный ключ")
-select wallet_opt in "${wallet_options[@]}"
-do
-  case $wallet_opt in
-    "Создать новый кошелек")
-      NEW_KEY=true
-      break
-      ;;
-    "Использовать существующий приватный ключ")
-      NEW_KEY=false
-      read -p "Введите приватный ключ (hex формат): " PRIV_KEY
-      if [ -z "$PRIV_KEY" ]; then
-        echo "Приватный ключ не может быть пустым!"
-        exit 1
-      fi
-      break
-      ;;
-    *) echo "Неверный вариант $REPLY";;
-  esac
-done
+case $choice in
+    1)
+        echo -e "${BLUE}Устанавливаем ноду Hemi...${NC}"
 
-# 1. Установка зависимостей
-echo
-echo "Обновляем систему и устанавливаем зависимости..."
-apt-get update && apt-get upgrade -y
-apt-get install -y wget curl tar jq git build-essential
+        # Обновляем и устанавливаем необходимые пакеты
+        sudo apt update && sudo apt upgrade -y
+        sleep 1
 
-# 2. Создание пользователя hemi
-if ! id "hemi" &>/dev/null; then
-  echo "Создаем системного пользователя..."
-  useradd -m -s /bin/bash hemi
-  usermod -a -G sudo hemi
-  echo "hemi ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-fi
+        # Проверка и установка tar, если его нет
+        if ! command -v tar &> /dev/null; then
+            sudo apt install tar -y
+        fi
 
-# 3. Загрузка и распаковка бинарников
-echo "Загружаем Hemi Network CLI..."
-wget -q https://github.com/hemilabs/heminetwork/releases/download/${HEMI_VERSION}/${HEMI_PACKAGE} -O /tmp/${HEMI_PACKAGE}
+        # Установка бинарника
+        echo -e "${BLUE}Загружаем бинарник Hemi...${NC}"
+        curl -L -O https://github.com/hemilabs/heminetwork/releases/download/v0.4.5/heminetwork_v0.4.5_linux_amd64.tar.gz
 
-if [ ! -f "/tmp/${HEMI_PACKAGE}" ]; then
-  echo "Ошибка загрузки пакета!"
-  exit 1
-fi
+        # Создание директории и извлечение бинарника
+        mkdir -p hemi
+        tar --strip-components=1 -xzvf heminetwork_v0.4.5_linux_amd64.tar.gz -C hemi
+        cd hemi
 
-echo "Распаковываем архив..."
-tar -xzf /tmp/${HEMI_PACKAGE} -C /home/hemi/
-chown -R hemi:hemi /home/hemi/heminetwork*
+        # Создание tBTC кошелька
+        ./keygen -secp256k1 -json -net="testnet" > ~/popm-address.json
 
-# 4. Генерация или сохранение ключа
-if [ "$NEW_KEY" = true ]; then
-  echo "Генерируем новые ключи..."
-  sudo -u hemi /home/hemi/heminetwork_${HEMI_VERSION}_linux_amd64/keygen -secp256k1 -json > /home/hemi/popm-address.json
-  PRIV_KEY=$(jq -r '.private_key' /home/hemi/popm-address.json)
-else
-  echo "Создаем файл ключа..."
-  sudo -u hemi bash -c "jq -n --arg priv \"$PRIV_KEY\" '{private_key: \$priv}' > /home/hemi/popm-address.json"
-fi
+        # Вывод содержимого файла popm-address.json
+        echo -e "${RED}Сохраните эти данные в надежное место:${NC}"
+        cat ~/popm-address.json
+        echo -e "${PURPLE}Ваш pubkey_hash — это ваш tBTC адрес, на который нужно запросить тестовые токены в Discord проекта.${NC}"
 
-# 5. Настройка сервиса systemd
-echo "Создаем systemd сервис..."
-cat <<EOF > /etc/systemd/system/hemi-pop.service
+        echo -e "${YELLOW}Введите ваш приватный ключ от кошелька:${NC} "
+        read PRIV_KEY
+        echo -e "${YELLOW}Укажите желаемый размер комиссии (минимум 50):${NC} "
+        read FEE
+
+        echo "POPM_BTC_PRIVKEY=$PRIV_KEY" > popmd.env
+        echo "POPM_STATIC_FEE=$FEE" >> popmd.env
+        echo "POPM_BFG_URL=wss://testnet.rpc.hemi.network/v1/ws/public" >> popmd.env
+        sleep 1
+
+        # Создание сервисного файла hemi.service
+        sudo bash -c 'cat <<EOT > /etc/systemd/system/hemi.service
 [Unit]
-Description=Hemi PoP Miner
+Description=PopMD Service
 After=network.target
 
 [Service]
-User=hemi
-Environment="POPM_BTC_PRIVKEY=${PRIV_KEY}"
-Environment="POPM_STATIC_FEE=${FEE_RATE}"
-Environment="POPM_BFG_URL=${BFG_URL}"
-Environment="POPM_BTC_CHAIN_NAME=${NETWORK}"
-WorkingDirectory=/home/hemi
-ExecStart=/home/hemi/heminetwork_${HEMI_VERSION}_linux_amd64/popmd
-Restart=always
-RestartSec=3
+EnvironmentFile=$HOME/hemi/popmd.env
+ExecStart=$HOME/hemi/popmd
+WorkingDirectory=$HOME/hemi/
+Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
-EOF
+EOT'
 
-# 6. Запуск сервиса
-systemctl daemon-reload
-systemctl enable hemi-pop
-systemctl start hemi-pop
+        # Обновление сервисов и включение hemi
+        sudo systemctl daemon-reload
+        sudo systemctl enable hemi
+        sleep 1
 
-# 7. Информация для пользователя
-echo
-echo "Установка завершена!"
-echo "Статус ноды: systemctl status hemi-pop"
-echo
-echo "=== Важные данные ==="
-echo "Сеть: ${NETWORK}"
-echo "Приватный ключ: ${PRIV_KEY}"
-echo "BTC Адрес: $(jq -r '.pubkey_hash' /home/hemi/popm-address.json)"
-echo
-echo "Для ${NETWORK} пополните адрес BTC!"
-if [ "$NETWORK" = "testnet" ]; then
-  echo "Получить tBTC можно здесь: https://bitcoinfaucet.uo1.net/"
-fi
+        # Запуск ноды
+        sudo systemctl start hemi
+
+        # Заключительный вывод
+        echo -e "${GREEN}Установка завершена и нода запущена!${NC}"
+
+        # Завершающий вывод
+        echo -e "${PURPLE}-----------------------------------------------------------------------${NC}"
+        echo -e "${YELLOW}Команда для проверки логов:${NC}" 
+        echo "sudo journalctl -u hemi -f"
+        echo -e "${PURPLE}-----------------------------------------------------------------------${NC}"
+        echo -e "${GREEN}CRYPTO FORTOCHKA — вся крипта в одном месте!${NC}"
+        echo -e "${CYAN}Наш Telegram https://t.me/cryptoforto${NC}"
+        ;;
+    2)
+        echo -e "${BLUE}Обновляем ноду Hemi...${NC}"
+
+        # Находим все сессии screen, содержащие "hemi"
+        SESSION_IDS=$(screen -ls | grep "hemi" | awk '{print $1}' | cut -d '.' -f 1)
+
+        # Если сессии найдены, удаляем их
+        if [ -n "$SESSION_IDS" ]; then
+            echo -e "${BLUE}Завершение сессий screen с идентификаторами: $SESSION_IDS${NC}"
+            for SESSION_ID in $SESSION_IDS; do
+                screen -S "$SESSION_ID" -X quit
+            done
+        else
+            echo -e "${BLUE}Сессии screen для ноды Hemi не найдены, начинаем обновление${NC}"
+        fi
+
+        # Проверка существования сервиса
+        if systemctl list-units --type=service | grep -q "hemi.service"; then
+            sudo systemctl stop hemi.service
+            sudo systemctl disable hemi.service
+            sudo rm /etc/systemd/system/hemi.service
+            sudo systemctl daemon-reload
+        else
+            echo -e "${BLUE}Сервис hemi.service не найден, продолжаем обновление.${NC}"
+        fi
+
+        # Удаление папки с бинарниками, содержащими "hemi" в названии
+        echo -e "${BLUE}Удаляем старые файлы ноды...${NC}"
+        rm -rf *hemi*
+        
+        # Обновляем и устанавливаем необходимые пакеты
+        sudo apt update && sudo apt upgrade -y
+
+        # Установка бинарника
+        echo -e "${BLUE}Загружаем бинарник Hemi...${NC}"
+        curl -L -O https://github.com/hemilabs/heminetwork/releases/download/v0.4.5/heminetwork_v0.4.5_linux_amd64.tar.gz
+
+        # Создание директории и извлечение бинарника
+        mkdir -p hemi
+        tar --strip-components=1 -xzvf heminetwork_v0.4.5_linux_amd64.tar.gz -C hemi
+        cd hemi
+
+        # Запрос приватного ключа и комиссии
+        echo -e "${YELLOW}Введите ваш приватный ключ от кошелька:${NC} "
+        read PRIV_KEY
+        echo -e "${YELLOW}Укажите желаемый размер комиссии (минимум 50):${NC} "
+        read FEE
+
+        # Создание файла popmd.env
+        echo "POPM_BTC_PRIVKEY=$PRIV_KEY" > popmd.env
+        echo "POPM_STATIC_FEE=$FEE" >> popmd.env
+        echo "POPM_BFG_URL=wss://testnet.rpc.hemi.network/v1/ws/public" >> popmd.env
+        sleep 1
+
+        # Создание сервисного файла hemi.service
+        sudo bash -c 'cat <<EOT > /etc/systemd/system/hemi.service
+[Unit]
+Description=PopMD Service
+After=network.target
+
+[Service]
+EnvironmentFile=$HOME/hemi/popmd.env
+ExecStart=$HOME/hemi/popmd
+WorkingDirectory=$HOME/hemi/
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOT'
+
+        # Обновление сервисов и включение hemi
+        sudo systemctl daemon-reload
+        sudo systemctl enable hemi
+        sleep 1
+
+        # Запуск ноды
+        sudo systemctl start hemi
+
+        # Заключительный вывод
+        echo -e "${GREEN}Нода обновлена и запущена!${NC}"
+
+        # Завершающий вывод
+        echo -e "${PURPLE}-----------------------------------------------------------------------${NC}"
+        echo -e "${YELLOW}Команда для проверки логов:${NC}" 
+        echo "sudo journalctl -u hemi -f"
+        echo -e "${PURPLE}-----------------------------------------------------------------------${NC}"
+        echo -e "${GREEN}CRYPTO FORTOCHKA — вся крипта в одном месте!${NC}"
+        echo -e "${CYAN}Наш Telegram https://t.me/cryptoforto${NC}"
+        ;;
+    3)
+        echo -e "${YELLOW}Укажите новое значение комиссии (минимум 50):${NC}"
+        read NEW_FEE
+
+        # Проверка, что введенное значение не меньше 50
+        if [ "$NEW_FEE" -ge 50 ]; then
+            # Обновляем значение комиссии в файле popmd.env
+            sed -i "s/^POPM_STATIC_FEE=.*/POPM_STATIC_FEE=$NEW_FEE/" $HOME/hemi/popmd.env
+            sleep 1
+
+            # Перезапуск сервиса Hemi
+            sudo systemctl restart hemi
+
+            echo -e "${GREEN}Значение комиссии успешно изменено!${NC}"
+
+            # Завершающий вывод
+            echo -e "${PURPLE}-----------------------------------------------------------------------${NC}"
+            echo -e "${YELLOW}Команда для проверки логов:${NC}" 
+            echo "sudo journalctl -u hemi -f"
+            echo -e "${PURPLE}-----------------------------------------------------------------------${NC}"
+            echo -e "${GREEN}CRYPTO FORTOCHKA — вся крипта в одном месте!${NC}"
+            echo -e "${CYAN}Наш Telegram https://t.me/cryptoforto${NC}"
+        else
+            echo -e "${RED}Ошибка: комиссия должна быть не меньше 50!${NC}"
+        fi
+        ;;
+
+    4)
+        echo -e "${BLUE}Удаление ноды Hemi...${NC}"
+
+        # Находим все сессии screen, содержащие "hemi"
+        SESSION_IDS=$(screen -ls | grep "hemi" | awk '{print $1}' | cut -d '.' -f 1)
+
+        # Если сессии найдены, удаляем их
+        if [ -n "$SESSION_IDS" ]; then
+            echo -e "${BLUE}Завершение сессий screen с идентификаторами: $SESSION_IDS${NC}"
+            for SESSION_ID in $SESSION_IDS; do
+                screen -S "$SESSION_ID" -X quit
+            done
+        else
+            echo -e "${BLUE}Сессии screen для ноды Hemi не найдены, продолжаем удаление${NC}"
+        fi
+
+        # Остановка и удаление сервиса Hemi
+        sudo systemctl stop hemi.service
+        sudo systemctl disable hemi.service
+        sudo rm /etc/systemd/system/hemi.service
+        sudo systemctl daemon-reload
+        sleep 1
+
+        # Удаление папки с названием, содержащим "hemi"
+        echo -e "${BLUE}Удаляем файлы ноды Hemi...${NC}"
+        rm -rf *hemi*
+        
+        echo -e "${GREEN}Нода Hemi успешно удалена!${NC}"
+
+        # Завершающий вывод
+        echo -e "${PURPLE}-----------------------------------------------------------------------${NC}"
+        echo -e "${YELLOW}Команда для проверки логов:${NC}" 
+        echo "sudo journalctl -u hemi -f"
+        echo -e "${PURPLE}-----------------------------------------------------------------------${NC}"
+        echo -e "${GREEN}CRYPTO FORTOCHKA — вся крипта в одном месте!${NC}"
+        echo -e "${CYAN}Наш Telegram https://t.me/cryptoforto${NC}"
+        ;;
+    5)
+        sudo journalctl -u hemi -f
+        ;;
+        
+esac
