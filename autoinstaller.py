@@ -52,8 +52,8 @@ def load_proxy_data() -> bool:
         with open(PROXY_DATA_FILE, "r") as f:
             proxy_data: dict = json.load(f)
             proxy_server = proxy_data.get("proxy_server", "")
-            username: str = proxy_data.get("username", "")
-            password: str = proxy_data.get("password", "")
+            username = proxy_data.get("username", "")
+            password = proxy_data.get("password", "")
         return True
     return False
 
