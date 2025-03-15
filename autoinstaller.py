@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import os
 import subprocess
 import requests
@@ -8,8 +7,7 @@ import json
 PROXY_DATA_FILE: str = "proxy_data.json"
 
 # Список доступных проектов
-PROJECTS: dict = \
-{
+PROJECTS: dict = {
     1: {"name": "Hemi", "url": "https://hemi.xyz/", "installer": "installers/hemi.sh", "installed": False},
     2: {"name": "Powerloom", "url": "https://docs.powerloom.io/", "installer": "installers/powerloom.sh", "installed": False},
     3: {"name": "Titan Network", "url": "https://titannet.gitbook.io/titan-network-en/galileo-testnet/titan-agent-installation-guide", "installer": "installers/titan.sh", "installed": False},
@@ -20,10 +18,14 @@ PROJECTS: dict = \
     8: {"name": "Spheron Network", "url": "https://docs.spheron.network/providers/setup-provider", "installer": "installers/spheron.sh", "installed": False},
 }
 
-# Глобальные переменные для данных прокси
-proxy_server: str = ""
-username: str = ""
-password: str = ""
+# Класс для хранения данных прокси
+class ProxyData:
+    def __init__(self):
+        self.proxy_server: str = ""
+        self.username: str = ""
+        self.password: str = ""
+
+proxy_data = ProxyData()
 
 def get_current_ip() -> str:
     """Получение текущего IP-адреса"""
@@ -36,24 +38,22 @@ def get_current_ip() -> str:
 
 def save_proxy_data() -> None:
     """Сохранение данных прокси в файл"""
-    proxy_data: dict = \
-    {
-        "proxy_server": proxy_server,
-        "username": username,
-        "password": password
+    proxy_data_dict: dict = {
+        "proxy_server": proxy_data.proxy_server,
+        "username": proxy_data.username,
+        "password": proxy_data.password,
     }
     with open(PROXY_DATA_FILE, "w") as f:
-        json.dump(proxy_data, f)
+        json.dump(proxy_data_dict, f)
 
 def load_proxy_data() -> bool:
     """Загрузка данных прокси из файла"""
-    global proxy_server, username, password
     if os.path.exists(PROXY_DATA_FILE):
         with open(PROXY_DATA_FILE, "r") as f:
-            proxy_data: dict = json.load(f)
-            proxy_server = proxy_data.get("proxy_server", "")
-            username = proxy_data.get("username", "")
-            password = proxy_data.get("password", "")
+            proxy_data_dict: dict = json.load(f)
+            proxy_data.proxy_server = proxy_data_dict.get("proxy_server", "")
+            proxy_data.username = proxy_data_dict.get("username", "")
+            proxy_data.password = proxy_data_dict.get("password", "")
         return True
     return False
 
@@ -67,19 +67,18 @@ def is_proxy_configured() -> bool:
 
 def setup_proxy() -> None:
     """Настройка прокси"""
-    global proxy_server, username, password
     if load_proxy_data():
         print("Используются ранее сохранённые данные прокси.")
     else:
-        proxy_server: str = input("Введите адрес прокси-сервера (например, http://proxy-server:port): ")
-        username: str = input("Введите логин для прокси: ")
-        password: str = input("Введите пароль для прокси: ")
+        proxy_data.proxy_server = input("Введите адрес прокси-сервера (например, http://proxy-server:port): ")
+        proxy_data.username = input("Введите логин для прокси: ")
+        proxy_data.password = input("Введите пароль для прокси: ")
         save_proxy_data()
 
     # Установка глобального прокси
     with open("/etc/environment", "a") as f:
-        f.write(f"\nhttp_proxy=http://{username}:{password}@{proxy_server}\n")
-        f.write(f"https_proxy=http://{username}:{password}@{proxy_server}\n")
+        f.write(f"\nhttp_proxy=http://{proxy_data.username}:{proxy_data.password}@{proxy_data.proxy_server}\n")
+        f.write(f"https_proxy=http://{proxy_data.username}:{proxy_data.password}@{proxy_data.proxy_server}\n")
         f.write("no_proxy=\"localhost,127.0.0.1,::1\"\n")
     print("Прокси успешно настроен.")
 
@@ -97,7 +96,12 @@ def validate_proxy(original_ip: str) -> None:
 def reboot_system() -> None:
     """Перезагрузка системы"""
     print("Для применения настроек прокси требуется перезагрузка системы.")
-    os.system("sudo reboot")
+    confirm: str = input("Хотите перезагрузить систему сейчас? (y/n): ").strip().lower()
+    if confirm == "y":
+        print("Перезагрузка системы...")
+        os.system("sudo reboot")
+    else:
+        print("Перезагрузите систему вручную для применения изменений.")
 
 def display_menu() -> None:
     print("\n=== Доступные тестнет-проекты ===")
