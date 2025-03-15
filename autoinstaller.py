@@ -10,12 +10,11 @@ PROXY_DATA_FILE: str = "proxy_data.json"
 PROJECTS: dict = {
     1: {"name": "Hemi", "url": "https://hemi.xyz/", "installer": "installers/hemi.sh", "installed": False},
     2: {"name": "Powerloom", "url": "https://docs.powerloom.io/", "installer": "installers/powerloom.sh", "installed": False},
-    3: {"name": "Titan Network", "url": "https://titannet.gitbook.io/titan-network-en/galileo-testnet/titan-agent-installation-guide", "installer": "installers/titan.sh", "installed": False},
-    4: {"name": "Farcaster", "url": "https://docs.farcaster.xyz/", "installer": "installers/farcaster.sh", "installed": False},
-    5: {"name": "Nillion", "url": "https://docs.nillion.com/network", "installer": "installers/nillion.sh", "installed": False},
-    6: {"name": "Initia", "url": "https://docs.initia.xyz/run-initia-node/running-initia-node", "installer": "installers/initia.sh", "installed": False},
-    7: {"name": "eOracle", "url": "https://docs.eo.app/docs/operators/installation", "installer": "installers/eoracle.sh", "installed": False},
-    8: {"name": "Spheron Network", "url": "https://docs.spheron.network/providers/setup-provider", "installer": "installers/spheron.sh", "installed": False},
+    3: {"name": "Farcaster", "url": "https://docs.farcaster.xyz/", "installer": "installers/farcaster.sh", "installed": False},
+    4: {"name": "Nillion", "url": "https://docs.nillion.com/network", "installer": "installers/nillion.sh", "installed": False},
+    5: {"name": "Initia", "url": "https://docs.initia.xyz/run-initia-node/running-initia-node", "installer": "installers/initia.sh", "installed": False},
+    6: {"name": "eOracle", "url": "https://docs.eo.app/docs/operators/installation", "installer": "installers/eoracle.sh", "installed": False},
+    7: {"name": "Spheron Network", "url": "https://docs.spheron.network/providers/setup-provider", "installer": "installers/spheron.sh", "installed": False},
 }
 
 # Класс для хранения данных прокси
