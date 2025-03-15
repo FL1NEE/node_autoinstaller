@@ -70,7 +70,7 @@ def setup_proxy() -> None:
     if load_proxy_data():
         print("Используются ранее сохранённые данные прокси.")
     else:
-        proxy_data.proxy_server = input("Введите адрес прокси-сервера (например, http://proxy-server:port): ")
+        proxy_data.proxy_server = input("Введите адрес прокси-сервера (например, proxy-server:port): ")
         proxy_data.username = input("Введите логин для прокси: ")
         proxy_data.password = input("Введите пароль для прокси: ")
         save_proxy_data()
