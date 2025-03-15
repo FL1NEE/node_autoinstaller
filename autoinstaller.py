@@ -51,7 +51,7 @@ def load_proxy_data() -> bool:
     if os.path.exists(PROXY_DATA_FILE):
         with open(PROXY_DATA_FILE, "r") as f:
             proxy_data: dict = json.load(f)
-            proxy_server: str = proxy_data.get("proxy_server", "")
+            proxy_server = proxy_data.get("proxy_server", "")
             username: str = proxy_data.get("username", "")
             password: str = proxy_data.get("password", "")
         return True
