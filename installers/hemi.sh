@@ -13,7 +13,7 @@ sudo apt install -y nodejs || { echo "Ошибка при установке Nod
 
 # 3. Клонирование репозитория
 echo "Клонирование репозитория Hemi..."
-git clone https://github.com/hemi-xyz/hemi-node.git /opt/hemi || { echo "Ошибка при клонировании репозитория."; exit 1; }
+git clone https://github.com/hemilabs/heminetwork /opt/hemi || { echo "Ошибка при клонировании репозитория."; exit 1; }
 cd /opt/hemi || { echo "Ошибка при переходе в директорию /opt/hemi."; exit 1; }
 
 # 4. Установка зависимостей
